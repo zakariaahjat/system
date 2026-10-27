@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock &amp; sales merger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f3f5f4;--surface:#fff;--ink:#16211e;--muted:#5d6b66;--line:#d9e0dd;--accent:#0b7a63;--accent-ink:#fff;--warn:#fff2c6;--head:#16302a;--head-ink:#fff;--chip:#e3efeb;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101715;--surface:#18221f;--ink:#e6efeb;--muted:#93a49d;--line:#2b3a35;--accent:#3ccaa7;--accent-ink:#06211a;--warn:#4a3f12;--head:#0a100e;--head-ink:#e6efeb;--chip:#22332d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101715;--surface:#18221f;--ink:#e6efeb;--muted:#93a49d;--line:#2b3a35;--accent:#3ccaa7;--accent-ink:#06211a;--warn:#4a3f12;--head:#0a100e;--head-ink:#e6efeb;--chip:#22332d;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0 0 8px;letter-spacing:-.02em}
+.lead{color:var(--muted);max-width:62ch;margin:0 0 22px}
+#drop{display:block;border:2px dashed var(--line);border-radius:14px;background:var(--surface);padding:30px 18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+#drop:hover,#drop.over,#drop:focus-within{border-color:var(--accent)}
+#drop strong{font-size:18px}
+#drop span{display:block;color:var(--muted);margin-top:4px}
+#drop input{position:absolute;opacity:0;width:1px;height:1px}
+.files{display:grid;gap:8px;margin:16px 0}
+.file{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.file b{font-weight:600}
+.chip{background:var(--chip);border-radius:99px;padding:1px 10px;font-size:13px;font-weight:600;color:var(--accent)}
+.chip.bad{background:var(--warn);color:var(--ink)}
+.map{color:var(--muted);font-size:13px;flex-basis:100%}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:14px 0}
+summary{cursor:pointer;font-weight:600}
+.syn{display:grid;grid-template-columns:130px 1fr;gap:8px;margin-top:12px;align-items:center}
+.syn input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 10px}
+.bar input[type=search]{flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit}
+button{font:inherit;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.count{color:var(--muted);font-size:14px}
+.wrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--head);color:var(--head-ink);text-align:left;padding:9px 10px;white-space:nowrap;cursor:pointer;user-select:none}
+td{padding:7px 10px;border-top:1px solid var(--line);white-space:nowrap}
+td.n{text-align:right} td.nm{white-space:normal;min-width:240px}
+tr.miss td{background:var(--warn)}
+.note{color:var(--muted);font-size:13px;margin-top:10px}
+#msg{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>Stock &amp; sales merger</h1>
+<p class="lead">Drop your monthly sales files, the product list and the supplier arrivage. The page finds which file is which, matches everything on the EAN, and builds one table. Nothing leaves your browser.</p>
+
+<details open>
+  <summary>How to use this website (detailed)</summary>
+  <div style="margin-top:10px;display:grid;gap:10px">
+    <div>
+      <strong>1) Prepare your files</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li><strong>Produit</strong> (product master) – needs EAN/barcode and internal product code. This is the bridge to link codes ↔ EANs.</li>
+        <li><strong>Monthly files</strong> (Mois_08, Mois_09, Mois_10 or any future month) – sales/stock per month. Put the month number in the filename.</li>
+        <li><strong>Arrivage Disty</strong> – supplier file. Ideally has product code, <strong>Prix Achat</strong> (HT) and <strong>Prix Vente</strong> (TTC). If it also has <strong>Qté/Quantité/Reçu</strong>, it will be pulled in as <strong>Qté Arrivage</strong>.</li>
+        <li><strong>Ma Config</strong> – current stock (optional but supported).</li>
+      </ul>
+    </div>
+    <div>
+      <strong>2) Upload</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li>Drag &amp; drop all files together, or click to choose. You can upload many at once.</li>
+        <li>The page auto-detects which file is which and which header is which.</li>
+      </ul>
+    </div>
+    <div>
+      <strong>3) Check mapping</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li>Look at the file list: each shows its role and detected headers.</li>
+        <li>If auto-detect is wrong, use <strong>Force role</strong> on that file (Mois / Produit / Arrivage / Ma Config / Ignorer) and it rebuilds instantly.</li>
+        <li>Edit <strong>Header names the page understands</strong> if a header uses a new name. Your changes are saved in this browser.</li>
+      </ul>
+    </div>
+    <div>
+      <strong>4) Matching rules</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li><strong>EAN is primary.</strong> Matched by EAN when present.</li>
+        <li><strong>Code fallback.</strong> If EAN missing, matched by exact internal product code across files, then <strong>EAN is retrieved from Produit and propagated</strong>.</li>
+        <li><strong>Bridge via Produit.</strong> Monthly files with only codes connect through <strong>Produit (EAN ↔ code)</strong>.</li>
+        <li><strong>No invention.</strong> The system will <u>never</u> invent EANs. Rows with neither EAN nor code stay unmatched (shown in yellow).</li>
+      </ul>
+    </div>
+    <div>
+      <strong>5) Results &amp; export</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li><strong>Moyenne mensuelle</strong> = average of <u>available</u> monthly quantities only. Missing months are excluded. Months with 0 sales are included.</li>
+        <li>Use search to filter. Click column headers to sort.</li>
+        <li>Export <strong>XLSX</strong> or <strong>CSV</strong> with the buttons at the top.</li>
+      </ul>
+    </div>
+    <div>
+      <strong>Tips</strong>
+      <ul style="margin:6px 0 0 18px;display:grid;gap:4px">
+        <li>Keep leading zeros in EANs — they are normalized as strings.</li>
+        <li>If your supplier gives quantities in <strong>Arrivage Disty</strong>, add it and the tool will adapt.</li>
+        <li>Everything stays offline in your browser. No files are uploaded anywhere.</li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<label id="drop" tabindex="-1">
+  <input type="file" id="pick" multiple accept=".xlsx,.xls,.csv">
+  <strong>Drop your Excel files here, or click to choose</strong>
+  <span>Name month files with their number: Mois_08, Mois_09, Mois_1 …</span>
+</label>
+
+<div class="files" id="files"></div>
+<div class="bar" style="margin-top:8px">
+  <button id="clear" class="ghost">Clear all</button>
+</div>
+
+<details>
+  <summary>Header names the page understands</summary>
+  <p class="count">Comma-separated. If a new file uses another header name, add it here and the table rebuilds.</p>
+  <div id="syn"></div>
+</details>
+
+<p id="msg"></p>
+<section id="out" hidden>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search EAN, code or name" aria-label="Search">
+    <span class="count" id="cnt"></span>
+    <span class="count" id="cnt-missing"></span>
+    <button id="xl" class="ghost" hidden>Download XLSX</button>
+    <button id="csv" hidden>Download CSV</button>
+  </div>
+  <div class="wrap"><table id="tbl"></table></div>
+  <p class="note">Yellow rows: the arrivage code is not in the product file, so no EAN could be found. Moyenne counts a month without movement as 0. Click a header to sort.</p>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const SYN = {
+  ean:["ean","ean13","barcode","code barre","gtin","reference interne","ref interne"],
+  code:["code","part number","partnumber","part no","pn","sku","additional barcodes","reference fournisseur","ref fournisseur","code article"],
+  name:["nom","name","product name","produit","designation","libelle","title","titre"],
+  qty:["qt","qte","qty","quantite","quantity","vendu","sold"],
+  stock:["quantite disponible","stock","stock dispo","en stock","qty available","on hand"],
+  buy:["prix grossiste ht","prix achat","prix d achat","pa","cost","prix fournisseur","purchase price","prix ht"],
+  sell:["pvp ttc","prix vente","prix de vente","pv","pvp","prix public","price","prix ttc"]
+};
+const LABEL = {ean:"EAN",code:"Code",name:"Name",qty:"Sold qty",stock:"Stock",buy:"Prix achat",sell:"Prix vente"};
+const EAN_RE = /\[\s*(\d{8,14})\s*\]/;
+const $ = id => document.getElementById(id);
+const raws = [];
+let table = [], months = [], sortKey = null, sortDir = -1;
+
+const norm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const key = v => { if (v == null) return ""; let s = String(v).trim().replace(/'/g,""); if (/^\d+\.0$/.test(s)) s = s.slice(0,-2); return s.replace(/\s+/g,"").toUpperCase(); };
+const num = v => { const n = parseFloat(String(v ?? "").replace(",",".")); return isNaN(n) ? null : n; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function synMap(){ const m = {}; for (const f in SYN) m[f] = $("s_"+f).value.split(",").map(norm).filter(Boolean); return m; }
+
+function headerRow(rows, sm){
+  const all = new Set(Object.values(sm).flat());
+  let best = 0, bs = -1;
+  rows.slice(0,15).forEach((r,i) => { const sc = (r||[]).filter(c => c != null && all.has(norm(c))).length; if (sc > bs){ bs = sc; best = i; } });
+  return best;
+}
+function mapCols(head, sm){
+  const out = {}, used = new Set();
+  for (const f in sm) for (let i = 0; i < head.length; i++)
+    if (!used.has(i) && sm[f].includes(norm(head[i]))) { out[f] = i; used.add(i); break; }
+  return out;
+}
+const looksEan = vals => { const v = vals.filter(x => x != null && x !== "").map(key); return v.length && v.filter(x => /^\d{8,14}$/.test(x)).length / v.length > .8; };
+
+function analyse(f, sm){
+  const h = headerRow(f.rows, sm);
+  const head = f.rows[h] || [];
+  const body = f.rows.slice(h+1).filter(r => r && r.some(c => c != null && c !== ""));
+  const c = mapCols(head, sm);
+  let role = null;
+  if (c.stock != null && (c.ean != null || c.code != null)) role = "product";
+  else if ((c.buy != null || c.sell != null) && (c.code != null || c.ean != null)) role = "arrivage";
+  else if (c.qty != null) role = "month";
+  const m = f.name.replace(/\.[^.]+$/,"").match(/(?<!\d)(\d{1,2})(?!\d)/);
+  return {f, head, body, c, role, month: m ? +m[1] : null};
+}
+
+function build(){
+  const sm = synMap(), A = raws.map(f => analyse(f, sm));
+  $("files").innerHTML = A.map(a => {
+    const cols = Object.entries(a.c).map(([k,i]) => `${LABEL[k]} = “${esc(a.head[i])}”`).join(" · ");
+    const label = a.role === "month" ? (a.month ? `Mois ${a.month}` : "month file, number missing") : a.role === "product" ? "Product list" : a.role === "arrivage" ? "Arrivage" : "not recognised";
+    return `<div class="file"><b>${esc(a.f.name)}</b><span class="chip ${a.role && (a.role!=="month"||a.month)?"":"bad"}">${label}</span><span class="map">${cols || "No known header found. Add its name in “Header names”."}</span></div>`;
+  }).join("");
+
+  const prod = A.find(a => a.role === "product"), arr = A.find(a => a.role === "arrivage");
+  const mf = A.filter(a => a.role === "month" && a.month != null);
+  $("out").hidden = true;
+  if (!prod){ $("msg").textContent = raws.length ? "No product file found yet. It needs a stock column and an EAN or code column." : ""; return; }
+  $("msg").textContent = "";
+
+  const rows = new Map(), code2ean = new Map();
+  for (const r of prod.body){
+    const ean = prod.c.ean != null ? key(r[prod.c.ean]) : "", code = prod.c.code != null ? key(r[prod.c.code]) : "";
+    if (code && ean) code2ean.set(code, ean);
+    if (ean){
+      const existing = rows.get(ean);
+      if (!existing){
+        rows.set(ean, {ean, code, name: String(r[prod.c.name] ?? "").trim(), stock: num(r[prod.c.stock]) ?? 0, q:{}});
+      }else{
+        if (!existing.code && code) existing.code = code;
+        if (!existing.name && r[prod.c.name]) existing.name = String(r[prod.c.name]).trim();
+        const st = num(r[prod.c.stock]);
+        if (st != null){ existing.stock = existing.stock == null ? st : (existing.stock + st); }
+      }
+    }
+  }
+  months = [...new Set(mf.map(a => a.month))].sort((a,b) => a-b);
+  for (const a of mf){
+    const nc = a.c.name ?? 0;
+    const useCol = a.c.ean != null && looksEan(a.body.map(r => r[a.c.ean]));
+    for (const r of a.body){
+      let ean, nm = String(r[nc] ?? "");
+      if (useCol) ean = key(r[a.c.ean]);
+      else { const x = nm.match(EAN_RE); ean = x ? x[1] : ""; nm = nm.replace(EAN_RE,"").trim(); }
+      if (!ean) continue;
+      if (!rows.has(ean)) rows.set(ean, {ean, code:"", name:nm, stock:null, q:{}});
+      const o = rows.get(ean); if (!o.name) o.name = nm;
+      o.q[a.month] = (o.q[a.month] || 0) + (num(r[a.c.qty]) || 0);
+    }
+  }
+  const noEan = [];
+  let hasArrivageQty = false;
+  if (arr) {
+    const ac = arr.c;
+    hasArrivageQty = ac.qty != null;
+    for (const r of arr.body){
+      const code = ac.code != null ? key(r[ac.code]) : "";
+      let ean = ac.ean != null ? key(r[ac.ean]) : "";
+      ean = ean || code2ean.get(code) || "";
+      if (!code && !ean) continue;
+      const buy = ac.buy != null ? num(r[ac.buy]) : null, sell = ac.sell != null ? num(r[ac.sell]) : null;
+      const nm = ac.name != null ? String(r[ac.name] ?? "").trim() : "";
+      const aq = ac.qty != null ? num(r[ac.qty]) : null;
+      if (aq != null) hasArrivageQty = true;
+      if (ean && rows.has(ean)){ const o = rows.get(ean); if (buy != null) o.buy = o.buy == null ? buy : Math.min(o.buy, buy); if (sell != null) o.sell = o.sell == null ? sell : sell; if (!o.code && code) o.code = code; if (aq != null){ if (!o.qArr) o.qArr = 0; o.qArr += aq; } }
+      else if (ean) rows.set(ean, {ean, code, name:nm, stock:null, buy, sell, q:{}, qArr: aq!=null?aq:undefined});
+      else noEan.push({ean:"", code, name:nm, stock:null, buy, sell, q:{}, qArr: aq!=null?aq:undefined});
+    }
+  }
+  window._hasArrivageQty = hasArrivageQty;
+  table = [...rows.values(), ...noEan].map(o => {
+    const qs = months.map(m => o.q[m] || 0), tot = qs.reduce((s,x) => s+x, 0);
+    return {...o, qs, tot, avg: months.length ? Math.round(tot / months.length * 10) / 10 : null, qArr: o.qArr };
+  });
+  sortKey = null; sortDir = -1;
+  $("out").hidden = false;
+  show();
+}
+
+function sorted(){
+  const q = norm($("q").value);
+  const t = table.filter(o => !q || norm(o.ean+" "+o.code+" "+o.name).includes(q));
+  const val = o => sortKey === null ? o.tot : /^m\d+$/.test(sortKey) ? o.qs[+sortKey.slice(1)] : o[sortKey];
+  return t.sort((a,b) => {
+    const x = val(a), y = val(b);
+    const c = (typeof x === "string" || typeof y === "string") ? String(x ?? "").localeCompare(String(y ?? "")) : (x ?? -1e18) - (y ?? -1e18);
+    return (sortDir === -1 ? -c : c) || a.name.localeCompare(b.name);
+  });
+}
+
+function show(){
+  const t = sorted();
+  let baseCols = [["ean","EAN"],["code","Code"],["name","Nom"],...months.map((m,i) => ["m"+i,"Mois "+m])];
+  if (window._hasArrivageQty) baseCols.push(["qArr","Qté Arrivage"]);
+  baseCols = baseCols.concat([["avg","Moyenne"],["stock","Stock"],["buy","Prix achat"],["sell","Prix vente"]]);
+  const cols = baseCols;
+  const f = v => v == null ? "" : v;
+  $("tbl").innerHTML = "<thead><tr>" + cols.map(([k,l]) => `<th data-k="${k}">${l}${sortKey === k ? (sortDir === -1 ? " ▼" : " ▲") : ""}</th>`).join("") + "</tr></thead><tbody>" +
+    t.map(o => `<tr class="${o.ean ? "" : "miss"}"><td>${esc(o.ean)}</td><td>${esc(o.code)}</td><td class="nm">${esc(o.name)}</td>${o.qs.map(x => `<td class="n">${x}</td>`).join("")}${window._hasArrivageQty?`<td class="n">${o.qArr==null?"":o.qArr}</td>`:""}<td class="n">${f(o.avg)}</td><td class="n">${f(o.stock)}</td><td class="n">${o.buy == null ? "" : o.buy.toFixed(2)}</td><td class="n">${o.sell == null ? "" : o.sell.toFixed(2)}</td></tr>`).join("") + "</tbody>";
+  const noEan = table.filter(o => !o.ean).length;
+  const noCode = table.filter(o => !o.code).length;
+  const noEanNoCode = table.filter(o => !o.ean && !o.code).length;
+  $("cnt").textContent = `${t.length} of ${table.length} products`;
+  const m = $("cnt-missing");
+  if (m) m.textContent = `· ${noEan} without EAN · ${noCode} without code · ${noEanNoCode} without EAN & code`;
+}
+
+function aoa(){
+  let head = ["EAN","Code","Nom",...months.map(m => "Mois "+m)];
+  if (window._hasArrivageQty) head.push("Qté Arrivage");
+  head = head.concat(["Moyenne","Stock","Prix achat","Prix vente","Remarque"]);
+  const body = sorted().map(o => {
+    const row = [o.ean,o.code,o.name,...o.qs];
+    if (window._hasArrivageQty) row.push(o.qArr==null?null:o.qArr);
+    row.push(o.avg,o.stock,o.buy ?? null,o.sell ?? null,o.ean ? "" : "EAN introuvable (code absent du fichier produit)");
+    return row;
+  });
+  return [head, ...body];
+}
+function save(kind){
+  const ws = XLSX.utils.aoa_to_sheet(aoa());
+  let blob, name;
+  if (kind === "csv"){ blob = new Blob(["\ufeff" + XLSX.utils.sheet_to_csv(ws)], {type:"text/csv;charset=utf-8"}); name = "Merged_Logitech.csv"; }
+  else { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Tableau");
+    blob = new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})], {type:"application/octet-stream"}); name = "Merged_Logitech.xlsx"; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function addFiles(list){
+  for (const file of list){
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:null, raw:true});
+      const i = raws.findIndex(r => r.name === file.name); if (i >= 0) raws.splice(i,1);
+      raws.push({name:file.name, rows});
+    } catch(e) { $("msg").textContent = "Cannot read " + file.name; }
+  }
+  build();
+}
+
+for (const f in SYN){
+  const l = document.createElement("label"); l.textContent = LABEL[f]; l.htmlFor = "s_"+f;
+  const i = document.createElement("input"); i.id = "s_"+f; i.value = SYN[f].join(", "); i.addEventListener("change", build);
+  $("syn").append(l, i);
+}
+$("pick").addEventListener("change", e => addFiles([...e.target.files]));
+const dz = $("drop");
+["dragenter","dragover"].forEach(t => dz.addEventListener(t, e => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave","drop"].forEach(t => dz.addEventListener(t, e => { e.preventDefault(); dz.classList.remove("over"); }));
+dz.addEventListener("drop", e => addFiles([...e.dataTransfer.files]));
+$("q").addEventListener("input", show);
+$("tbl").addEventListener("click", e => { const k = e.target.closest("th")?.dataset.k; if (!k) return; sortDir = sortKey === k ? -sortDir : (["ean","code","name"].includes(k) ? 1 : -1); sortKey = k; show(); });
+$("xl").addEventListener("click", () => save("xlsx"));
+$("csv").addEventListener("click", () => save("csv"));
+$("xl").hidden = false; $("csv").hidden = false;
+const clr = $("clear");
+if (clr) {
+  clr.addEventListener("click", () => {
+    raws.length = 0;
+    table = []; months = []; sortKey = null; sortDir = -1;
+    $("files").innerHTML = "";
+    $("out").hidden = true;
+    $("msg").textContent = "Files cleared.";
+    document.getElementById("pick").value = "";
+    build();
+  });
+}
+</script>
+</body>
+</html>
